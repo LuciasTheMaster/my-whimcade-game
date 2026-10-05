@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Legends of Rolling</title>
+<meta name="whimcade:players" content="solo">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='6' width='52' height='52' rx='14' fill='%233d7bff'/%3E%3Ccircle cx='22' cy='22' r='6' fill='%23fff'/%3E%3Ccircle cx='42' cy='42' r='6' fill='%23fff'/%3E%3Ccircle cx='42' cy='22' r='6' fill='%23fff'/%3E%3Ccircle cx='22' cy='42' r='6' fill='%23fff'/%3E%3C/svg%3E">
+<script type="application/json" id="whimcade-features">[
+  {"key":"fullscreen","label":"Fullscreen toggle","kind":"standard","tier":"small"},
+  {"key":"pause","label":"Pause and resume","kind":"standard","tier":"small"},
+  {"key":"difficulty","label":"Three difficulty levels","kind":"standard","tier":"medium"},
+  {"key":"mobile","label":"Phone-first layout with thumb controls","kind":"standard","tier":"medium"},
+  {"key":"highscores","label":"In-game best-score board","kind":"standard","tier":"medium"},
+  {"key":"moonlit_theme","label":"Moonlit theme: every world under a starry night","kind":"agent_extra","tier":"small"},
+  {"key":"coral_lagoon","label":"World 4: Coral Lagoon with three sea pets","kind":"agent_extra","tier":"medium"},
+  {"key":"pet_forge","label":"Pet Forge: fuse 5 duplicates into a Luck-boosting Shiny","kind":"agent_extra","tier":"large"}
+]</script>
+<script type="application/json" id="whimcade-extras">[
+  {"key":"golden_dice","label":"Golden ROLL button","blurb":"A shiny gold ROLL button that throws star sparkles. Looks only.","price_coins":20,"type":"permanent"}
+]</script>
+<script type="application/json" id="whimcade-tuning">[
+  {"key":"luck_boost","label":"Rare boost per Luck point (%)","group":"Difficulty","type":"number","default":0.2,"min":0.05,"max":1.0,"step":0.05},
+  {"key":"roll_time","label":"Seconds per roll","group":"Pacing","type":"number","default":0.45,"min":0.2,"max":1.2,"step":0.05},
+  {"key":"auto_roll","label":"Auto Roll unlocks after World 1","group":"Pacing","type":"toggle","default":true},
+  {"key":"sound_on","label":"Sound on at start","group":"Sound","type":"toggle","default":true},
+  {"key":"accent_color","label":"ROLL button colour","group":"Look","type":"color","default":"#3d7bff"},
+  {"key":"roll_label","label":"ROLL button text","group":"Look","type":"text","default":"ROLL","max_chars":12}
+]</script>
+<style>
+:root{--accent:#3d7bff;--accent-d:#2a56b3;--accent-l:#7aa6ff;--ink:#26304f;--card:#fff;--lip:#c6cee4}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#1b2447;font-family:"Trebuchet MS","Arial Rounded MT Bold","Segoe UI",system-ui,sans-serif;color:var(--ink);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;padding:6px 8px 8px;gap:6px}
+body.m1 #app{padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+button{font-family:inherit;cursor:pointer;touch-action:manipulation}
+.hud{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:none}
+.chip{background:var(--card);border-radius:12px;padding:5px 10px;box-shadow:0 3px 0 var(--lip);font-weight:800;font-size:clamp(12px,2.3vh,16px);white-space:nowrap;line-height:1.2}
+.chip b{color:var(--accent-d)}
+.spacer{flex:1}
+.icon{width:44px;height:44px;border-radius:12px;border:0;background:var(--card);box-shadow:0 4px 0 var(--lip);font-size:20px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.icon:active{transform:translateY(3px);box-shadow:0 1px 0 var(--lip)}
+.main{flex:1;display:flex;gap:10px;min-height:0}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;min-height:0;min-width:0;gap:6px}
+#goalRow{display:flex;gap:6px;align-items:center;width:100%;flex:none}
+#worldBtn{border:0;border-radius:12px;padding:0 10px;min-height:36px;font-weight:800;font-size:clamp(12px,2.2vh,15px);background:var(--card);box-shadow:0 3px 0 var(--lip);color:var(--ink);white-space:nowrap;flex:none}
+#goal{flex:1;min-width:0;background:rgba(255,255,255,.88);border-radius:12px;padding:4px 10px;font-size:clamp(11px,2vh,14px);font-weight:700;line-height:1.3;box-shadow:0 3px 0 rgba(0,0,0,.18)}
+#goal .ok{color:#1c9a4a}
+#goal .todo{color:#7a84a3}
+#stage{flex:1;width:100%;min-height:40px}
+#result{background:rgba(20,26,56,.84);border-radius:16px;padding:6px 16px 7px;text-align:center;width:min(94%,440px);border-bottom:4px solid rgba(0,0,0,.35);color:#fff;flex:none}
+#yr{font-size:clamp(12px,2.3vh,16px);opacity:.85;font-weight:700}
+#pn{font-size:clamp(20px,4.6vh,36px);font-weight:900;line-height:1.1;text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 12px rgba(0,0,0,.4);overflow-wrap:anywhere}
+#po{font-size:clamp(11px,2vh,14px);opacity:.8;font-weight:700}
+.new{display:inline-block;background:#ff3d7f;color:#fff;border-radius:8px;font-size:.45em;padding:2px 6px;vertical-align:middle;margin-left:6px;text-shadow:none}
+#rollRow{display:flex;gap:8px;align-items:center;justify-content:center;width:100%;flex:none}
+#rollBtn{position:relative;border:0;border-radius:22px;min-height:clamp(52px,11vh,84px);width:min(78%,360px);font-size:clamp(24px,5.5vh,42px);font-weight:900;letter-spacing:2px;color:#fff;background:linear-gradient(var(--accent-l),var(--accent) 45%,var(--accent));box-shadow:0 7px 0 var(--accent-d),0 10px 18px rgba(0,0,0,.3);text-shadow:0 3px 0 rgba(0,0,0,.25)}
+#rollBtn:active,#rollBtn.down{transform:translateY(5px);box-shadow:0 2px 0 var(--accent-d),0 4px 8px rgba(0,0,0,.3)}
+#rollBtn.busy{filter:saturate(.7) brightness(.95)}
+#rollBtn.gold{background:linear-gradient(#fff3a8,#ffcc33 45%,#f0a81c);color:#7a4a00;text-shadow:0 2px 0 rgba(255,255,255,.6);box-shadow:0 7px 0 #b97a0c,0 0 22px rgba(255,210,60,.7)}
+#rollBtn.gold:active,#rollBtn.gold.down{box-shadow:0 2px 0 #b97a0c,0 0 22px rgba(255,210,60,.7)}
+#autoBtn{border:0;border-radius:16px;min-height:52px;min-width:64px;padding:0 10px;font-weight:900;font-size:14px;background:var(--card);color:var(--ink);box-shadow:0 5px 0 var(--lip)}
+#autoBtn.on{background:#3ccf6e;color:#fff;box-shadow:0 5px 0 #23944b}
+#hint{font-size:11px;color:rgba(255,255,255,.85);font-weight:700;text-shadow:0 1px 2px #000;flex:none}
+#side{width:clamp(260px,27vw,380px);display:none;flex-direction:column;background:rgba(255,255,255,.94);border-radius:18px;box-shadow:0 5px 0 rgba(0,0,0,.2);padding:10px;min-height:0}
+@media (min-width:900px) and (min-height:520px){#side{display:flex}#colBtn{display:none}}
+.ctitle{font-weight:900;font-size:18px;display:flex;align-items:center;gap:8px;margin:0 0 6px}
+.ctitle small{font-size:13px;color:#7a84a3}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;overflow:auto;min-height:0;padding:2px 2px 6px}
+.card{background:#f3f5fc;border-radius:14px;padding:6px;text-align:center;box-shadow:0 3px 0 #d5dbec;position:relative}
+.card.got{background:#1f2750;box-shadow:0 3px 0 #0d1330}
+.card img{width:64px;height:64px;display:block;margin:0 auto}
+.card .nm{font-weight:900;font-size:13px;line-height:1.15;min-height:2.3em;display:flex;align-items:center;justify-content:center}
+.card .od{font-size:11px;font-weight:800;color:#7a84a3}
+.card.got .od{color:#aab3d6}
+.card .ct{position:absolute;top:4px;right:6px;font-size:11px;font-weight:900;color:#fff;background:rgba(0,0,0,.35);border-radius:8px;padding:1px 5px}
+.card .sh{position:absolute;top:4px;left:6px;font-size:11px;font-weight:900;color:#3a2a00;background:#ffd84a;border-radius:8px;padding:1px 5px}
+.fuse{margin-top:4px;border:0;border-radius:10px;min-height:32px;width:100%;font-weight:900;font-size:12px;background:#ffd84a;color:#4a3500;box-shadow:0 3px 0 #c99a12}
+.ov{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:safe center;align-items:center;padding:10px;background:rgba(10,14,35,.55);overflow:auto;z-index:10}
+.ov[hidden]{display:none}
+.panel{background:var(--card);border-radius:22px;padding:clamp(10px,2.6vh,24px);width:min(520px,96%);max-height:100%;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 0 var(--lip),0 18px 40px rgba(0,0,0,.4);text-align:center;min-height:0}
+.panel .scroll{overflow:auto;min-height:0;flex:1 1 auto;display:flex;flex-direction:column;gap:8px}
+.panel h1{margin:0;font-size:clamp(26px,6.5vh,48px);line-height:1;font-weight:900;color:var(--accent);text-shadow:0 3px 0 var(--accent-d),0 6px 10px rgba(0,0,0,.2);flex:none}
+.panel h2{margin:0;font-size:clamp(20px,4.5vh,30px);font-weight:900;flex:none}
+.panel p{margin:0;font-size:clamp(12px,2.2vh,15px);line-height:1.4;font-weight:600;color:#4a5478}
+.big{border:0;border-radius:18px;min-height:52px;padding:0 22px;font-size:clamp(18px,3.6vh,24px);font-weight:900;color:#fff;background:linear-gradient(#5be38c,#2fc464);box-shadow:0 6px 0 #1f8f47;flex:none}
+.big:active{transform:translateY(4px);box-shadow:0 2px 0 #1f8f47}
+.sec{border:0;border-radius:14px;min-height:44px;padding:0 16px;font-size:15px;font-weight:800;background:#eef1fa;color:var(--ink);box-shadow:0 4px 0 #d0d7ea;flex:none}
+.buy{border:0;border-radius:14px;min-height:44px;padding:0 14px;font-size:14px;font-weight:900;background:linear-gradient(#fff1a0,#ffc93a);color:#5a3a00;box-shadow:0 4px 0 #c08a10;flex:none}
+.pets{display:flex;justify-content:center;gap:4px;flex:none}
+.pets img{width:clamp(44px,10vh,72px);height:clamp(44px,10vh,72px)}
+.diff{display:flex;gap:6px;justify-content:center}
+.diff button{border:0;border-radius:12px;min-height:44px;padding:0 14px;font-weight:800;background:#eef1fa;box-shadow:0 3px 0 #d0d7ea;color:var(--ink)}
+.diff button[aria-pressed=true]{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-d)}
+.hs{font-size:13px;font-weight:800;color:#4a5478;background:#f3f5fc;border-radius:12px;padding:6px}
+.hs:empty{display:none}
+#toast{position:fixed;left:50%;top:58px;transform:translateX(-50%);background:#fff;border-radius:14px;padding:8px 16px;font-weight:900;box-shadow:0 4px 0 var(--lip),0 8px 20px rgba(0,0,0,.3);z-index:20;pointer-events:none;opacity:0;transition:opacity .25s;max-width:92%;text-align:center;font-size:14px}
+#toast.show{opacity:1}
+body.m1 #rollBtn{min-height:max(64px,11vh);width:min(70%,360px)}
+body.m1 #autoBtn{min-height:60px;min-width:72px}
+body.m1 .hud .chip{font-size:13px}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="app">
+  <div class="hud">
+    <div class="chip">🎲 Rolls <b id="rolls">0</b></div>
+    <div class="chip">🍀 Luck <b id="luck">0</b></div>
+    <div class="spacer"></div>
+    <button class="icon" id="moonBtn" aria-label="Moonlit theme" style="display:none">🌙</button>
+    <button class="icon" id="fsBtn" aria-label="Fullscreen" style="display:none">⛶</button>
+    <button class="icon" id="pauseBtn" aria-label="Pause" style="display:none">⏸</button>
+    <button class="icon" id="muteBtn" aria-label="Mute">🔊</button>
+    <button class="icon" id="colBtn" aria-label="Collection">📖</button>
+  </div>
+  <div class="main">
+    <div class="col">
+      <div id="goalRow"><button id="worldBtn">🌼 Sunny Meadow</button><div id="goal"></div></div>
+      <div id="stage"></div>
+      <div id="result"><div id="yr">Ready to roll?</div><div id="pn" style="color:#fff">Press ROLL!</div><div id="po">Every roll gives +1 Luck</div></div>
+      <div id="rollRow"><button id="rollBtn">ROLL</button><button id="autoBtn" style="display:none">AUTO</button></div>
+      <div id="hint"></div>
+    </div>
+    <div id="side"><div class="ctitle">📖 Collection <small id="sideCount"></small></div><div class="grid" id="sideGrid"></div><button class="buy buyGold" style="display:none;margin-top:6px">Unlock Golden ROLL button</button></div>
+  </div>
+</div>
+
+<div class="ov" id="titleOv">
+  <div class="panel">
+    <h1>Legends of Rolling</h1>
+    <div class="scroll">
+      <div class="pets" id="titlePets"></div>
+      <p>Press <b>ROLL</b> to discover a random pet. Every roll adds <b>+1 Luck</b>, and Luck makes pets of 1 in 10 and rarer easier to find.</p>
+      <p>Find each world's pets to travel on: <b>Sunny Meadow</b>, <b>Ember Peaks</b> and <b>Starfall Isles</b>. Then chase the rarest legends!</p>
+      <div class="diff" id="diffBox" style="display:none"></div>
+      <div class="hs" id="hsBox" style="display:none"></div>
+      <button class="buy buyGold" style="display:none">Unlock Golden ROLL button</button>
+    </div>
+    <button class="big" id="playBtn">PLAY</button>
+  </div>
+</div>
+
+<div class="ov" id="colOv" hidden>
+  <div class="panel" style="width:min(640px,96%)">
+    <div class="ctitle" style="justify-content:space-between;margin:0"><span>📖 Collection <small id="ovCount"></small></span><button class="icon" id="colClose" aria-label="Close">✕</button></div>
+    <div class="grid" id="ovGrid"></div>
+    <button class="buy buyGold" style="display:none">Unlock Golden ROLL button</button>
+  </div>
+</div>
+
+<div class="ov" id="msgOv" hidden>
+  <div class="panel">
+    <h2 id="msgTitle"></h2>
+    <div class="scroll"><div class="pets" id="msgPets"></div><p id="msgText"></p><div id="msgHs"></div></div>
+    <button class="big" id="msgBtn">OK</button>
+    <button class="sec" id="msgBtn2" style="display:none">Stay here</button>
+  </div>
+</div>
+
+<div class="ov" id="pauseOv">
+  <div class="panel"><h2>Paused</h2><p>Your rolls are waiting.</p><button class="big" id="resumeBtn">RESUME</button></div>
+</div>
+<div id="toast"></div>
+
+<script>
+window.WHIMCADE_FLAGS = Object.freeze(Object.fromEntries((new URLSearchParams(location.search).get("flags") || "").split(",").filter(Boolean).map((k) => [k, true])));
+window.WHIMCADE_TUNING = Object.freeze((() => { try { const v = JSON.parse(new URLSearchParams(location.search).get("tune") || "{}"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { return {}; } })());
+</script>
+<script>
+/* whimcade-platform-kit v1 — the plumbing every Whimcade game needs, done once.
+ *
+ * Paste this file VERBATIM into an inline <script> right after the flags and
+ * tuning boot lines and before the game code (the bundle stays one
+ * self-contained file). It holds no game logic and never touches storage or
+ * the network; every piece is opt-in and does nothing until the game calls it.
+ *
+ *   const P = WhimcadePlatform;
+ *   P.flag('pause')             // true only when the creator switched that feature on
+ *   P.tuned('lives')            // the creator's value when it fits the head tuning
+ *                               //   manifest row (type, range, options, max_chars,
+ *                               //   #rrggbb), else that row's `default`
+ *   P.tuning()                  // { key: P.tuned(key) } for every declared row
+ *   P.input                     // 'touch' | 'mouse' | 'hybrid' from ?input= (a hint, never a lock)
+ *   P.touchControls(el)         // hidden under ?input=mouse until a real touch arrives
+ *   P.fit(canvas, { width, height, maxDpr: 2, budget: 2.5e6, onResize })
+ *                               // sizes the backing store to its CSS box (or width x height)
+ *                               //   under the dpr and pixel budget, re-applies on resize and
+ *                               //   fullscreenchange; returns { w, h, scale } (live object)
+ *   P.fullscreenButton(el)      // click + F key, glyph swap, hidden when the API is missing
+ *   P.pause({ button, overlay, onPause, onResume })
+ *                               // P / Escape + the button; P.paused, P.setPaused(bool)
+ *   P.difficulty(el, { value: 'normal', onPick })
+ *                               // an Easy / Normal / Hard picker; P.level
+ *   P.highscores(el, { format, title })
+ *                               // { add(score) -> true on a new best, best, runs,
+ *                               //   snapshot(), restore(snap) } — best + last five
+ *   P.post(type, fields)        // window.parent.postMessage({ type, ...fields }, '*')
+ *   P.on(type, fn)              // fn(message) for each parent message of that type
+ *   P.request(type, fn, { retryMs: 1200 })
+ *                               // post { type }, fn(message) once on the reply (or never)
+ *
+ * The arcade's message types stay in the game's own code — write the literal
+ * type string at the call (P.post('<type>', { score: n })); the kit never names one.
+ */
+window.WhimcadePlatform = (() => {
+  const P = {};
+  const framed = window.parent !== window;
+  const params = new URLSearchParams(location.search);
+  const hint = params.get('input');
+  P.input = hint === 'touch' || hint === 'mouse' || hint === 'hybrid' ? hint : 'hybrid';
+  P.framed = framed;
+
+  // ---- flags -------------------------------------------------------------
+  P.flags = window.WHIMCADE_FLAGS || Object.freeze({});
+  P.flag = (key) => P.flags[key] === true;
+
+  // ---- tuning ------------------------------------------------------------
+  let rows = null;
+  const manifest = () => {
+    if (rows) return rows;
+    rows = {};
+    const el = document.getElementById('whimcade-tuning');
+    if (!el) return rows;
+    try {
+      const list = JSON.parse(el.textContent || '[]');
+      if (Array.isArray(list)) for (const r of list) if (r && typeof r.key === 'string') rows[r.key] = r;
+    } catch (e) { /* a broken manifest tunes nothing */ }
+    return rows;
+  };
+  const fits = (r, v) => {
+    switch (r.type) {
+      case 'number': return typeof v === 'number' && isFinite(v) && v >= r.min && v <= r.max;
+      case 'toggle': return typeof v === 'boolean';
+      case 'choice': return Array.isArray(r.options) && r.options.indexOf(v) >= 0;
+      case 'text': return typeof v === 'string' && v.trim().length > 0 && v.length <= (r.max_chars || 24);
+      case 'color': return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+      default: return false;
+    }
+  };
+  P.tuned = (key) => {
+    const r = manifest()[key];
+    if (!r) return undefined;
+    const given = (window.WHIMCADE_TUNING || {})[key];
+    return given !== undefined && fits(r, given) ? given : r.default;
+  };
+  P.tuning = () => {
+    const out = {};
+    for (const key of Object.keys(manifest())) out[key] = P.tuned(key);
+    return out;
+  };
+
+  // ---- relays (the game names the type) ------------------------------------
+  P.post = (type, fields) => {
+    if (!framed) return;
+    try { window.parent.postMessage(Object.assign({ type }, fields || {}), '*'); } catch (e) { /* fire-and-forget */ }
+  };
+  P.on = (type, fn) => {
+    const listener = (e) => {
+      if (e.source !== window.parent) return;
+      const m = e.data;
+      if (!m || typeof m !== 'object' || m.type !== type) return;
+      try { fn(m); } catch (err) { console.warn(err); }
+    };
+    window.addEventListener('message', listener);
+    return () => window.removeEventListener('message', listener);
+  };
+  P.request = (type, fn, opts) => {
+    let answered = false;
+    const off = P.on(type, (m) => { if (answered) return; answered = true; off(); fn(m); });
+    P.post(type);
+    const retryMs = opts && opts.retryMs != null ? opts.retryMs : 1200;
+    if (retryMs > 0) setTimeout(() => { if (!answered) P.post(type); }, retryMs);
+    return off;
+  };
+
+  // ---- input hint ----------------------------------------------------------
+  const touchEls = [];
+  let touched = false;
+  const showTouch = () => { touched = true; for (const el of touchEls) el.style.display = ''; };
+  window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch' && !touched) showTouch(); }, true);
+  window.addEventListener('touchstart', () => { if (!touched) showTouch(); }, { capture: true, passive: true });
+  P.touchControls = (el) => {
+    touchEls.push(el);
+    if (P.input === 'mouse' && !touched) el.style.display = 'none';
+    return el;
+  };
+
+  // ---- canvas fit -----------------------------------------------------------
+  const fitted = [];
+  const applyFit = (f) => {
+    const box = f.canvas.getBoundingClientRect();
+    const cssW = f.opts.width || Math.max(1, Math.round(box.width || f.canvas.clientWidth || innerWidth));
+    const cssH = f.opts.height || Math.max(1, Math.round(box.height || f.canvas.clientHeight || innerHeight));
+    let scale = Math.min(window.devicePixelRatio || 1, f.opts.maxDpr || 2);
+    const budget = f.opts.budget || 2.5e6;
+    if (cssW * cssH * scale * scale > budget) scale = Math.sqrt(budget / (cssW * cssH));
+    const w = Math.max(1, Math.floor(cssW * scale));
+    const h = Math.max(1, Math.floor(cssH * scale));
+    if (f.canvas.width !== w) f.canvas.width = w;
+    if (f.canvas.height !== h) f.canvas.height = h;
+    Object.assign(f.state, { w, h, scale, cssW, cssH });
+    if (f.opts.onResize) f.opts.onResize(f.state);
+  };
+  const refit = () => { for (const f of fitted) applyFit(f); };
+  window.addEventListener('resize', refit);
+  document.addEventListener('fullscreenchange', () => requestAnimationFrame(refit));
+  P.fit = (canvas, opts) => {
+    const f = { canvas, opts: opts || {}, state: { w: 0, h: 0, scale: 1, cssW: 0, cssH: 0 } };
+    fitted.push(f);
+    applyFit(f);
+    return f.state;
+  };
+  P.refit = refit;
+
+  // ---- fullscreen -----------------------------------------------------------
+  const root = document.documentElement;
+  const fsAvailable = () => !!(root.requestFullscreen && document.fullscreenEnabled !== false);
+  const fsToggle = () => {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else root.requestFullscreen().catch(() => {});
+    } catch (e) { /* refused outside a gesture */ }
+  };
+  P.fullscreenButton = (el) => {
+    if (!fsAvailable()) { el.style.display = 'none'; return el; }
+    const glyph = () => { el.textContent = document.fullscreenElement ? '⤢' : '⛶'; el.setAttribute('aria-label', document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen'); };
+    el.addEventListener('click', (e) => { e.stopPropagation(); fsToggle(); });
+    window.addEventListener('keydown', (e) => { if ((e.key === 'f' || e.key === 'F') && !e.repeat && !e.ctrlKey && !e.metaKey) fsToggle(); });
+    document.addEventListener('fullscreenchange', glyph);
+    glyph();
+    return el;
+  };
+
+  // ---- pause ----------------------------------------------------------------
+  P.paused = false;
+  let pauseOpts = null;
+  P.setPaused = (on) => {
+    on = !!on;
+    if (!pauseOpts || on === P.paused) return P.paused;
+    P.paused = on;
+    if (pauseOpts.overlay) pauseOpts.overlay.style.display = on ? '' : 'none';
+    if (pauseOpts.button) pauseOpts.button.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const cb = on ? pauseOpts.onPause : pauseOpts.onResume;
+    if (cb) cb();
+    return P.paused;
+  };
+  P.pause = (opts) => {
+    pauseOpts = opts || {};
+    if (pauseOpts.overlay) pauseOpts.overlay.style.display = 'none';
+    if (pauseOpts.button) pauseOpts.button.addEventListener('click', (e) => { e.stopPropagation(); P.setPaused(!P.paused); });
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      if (e.key === 'p' || e.key === 'P') P.setPaused(!P.paused);
+      else if (e.key === 'Escape' && P.paused) P.setPaused(false);
+      else if (e.key === 'Escape') P.setPaused(true);
+    });
+    return P;
+  };
+
+  // ---- difficulty -------------------------------------------------------------
+  const LEVELS = [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']];
+  P.level = 'normal';
+  P.difficulty = (el, opts) => {
+    opts = opts || {};
+    P.level = opts.value || 'normal';
+    el.innerHTML = '';
+    const buttons = LEVELS.map(([key, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.dataset.level = key;
+      b.addEventListener('click', (e) => { e.stopPropagation(); pick(key); });
+      el.appendChild(b);
+      return b;
+    });
+    const mark = () => { for (const b of buttons) b.setAttribute('aria-pressed', b.dataset.level === P.level ? 'true' : 'false'); };
+    const pick = (key) => { P.level = key; mark(); if (opts.onPick) opts.onPick(key); };
+    mark();
+    return { pick, get value() { return P.level; } };
+  };
+
+  // ---- highscores ---------------------------------------------------------------
+  P.highscores = (el, opts) => {
+    opts = opts || {};
+    const format = opts.format || ((n) => String(Math.round(n)));
+    const board = { best: null, runs: [] };
+    const render = (fresh) => {
+      if (!el) return;
+      el.innerHTML = '';
+      const head = document.createElement('div');
+      head.textContent = (opts.title || 'Best') + ': ' + (board.best == null ? '—' : format(board.best)) + (fresh ? '  ★ New best!' : '');
+      el.appendChild(head);
+      if (board.runs.length) {
+        const list = document.createElement('div');
+        list.textContent = 'Last runs: ' + board.runs.map(format).join(' · ');
+        el.appendChild(list);
+      }
+    };
+    board.add = (score) => {
+      if (typeof score !== 'number' || !isFinite(score)) return false;
+      const fresh = board.best == null || score > board.best;
+      if (fresh) board.best = score;
+      board.runs.unshift(score);
+      board.runs.length = Math.min(board.runs.length, 5);
+      render(fresh);
+      return fresh;
+    };
+    board.snapshot = () => ({ best: board.best, runs: board.runs.slice() });
+    board.restore = (snap) => {
+      if (!snap || typeof snap !== 'object') return;
+      if (typeof snap.best === 'number' && isFinite(snap.best)) board.best = snap.best;
+      if (Array.isArray(snap.runs)) board.runs = snap.runs.filter((n) => typeof n === 'number' && isFinite(n)).slice(0, 5);
+      render(false);
+    };
+    render(false);
+    return board;
+  };
+
+  return P;
+})();
+
+</script>
+<script>
+(() => {
+'use strict';
+const P = WhimcadePlatform, tuned = P.tuned, TAU = Math.PI * 2;
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n.toLocaleString('en-US');
+
+// ---------- colour helpers ----------
+function rgb(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function shade(hex, a) {
+  const c = rgb(hex), t = a < 0 ? 0 : 255, p = Math.abs(a);
+  return 'rgb(' + c.map((v) => Math.round(v + (t - v) * p)).join(',') + ')';
+}
+function hexShade(hex, a) { const c = rgb(hex), t = a < 0 ? 0 : 255, p = Math.abs(a); return '#' + c.map((v) => Math.round(v + (t - v) * p).toString(16).padStart(2, '0')).join(''); }
+
+const accent = tuned('accent_color');
+document.documentElement.style.setProperty('--accent', accent);
+document.documentElement.style.setProperty('--accent-d', hexShade(accent, -0.32));
+document.documentElement.style.setProperty('--accent-l', hexShade(accent, 0.35));
+const ROLL_LABEL = String(tuned('roll_label')).toUpperCase();
+
+// ---------- data ----------
+const PETS = [
+  { id: 'cat', name: 'Tiny Cat', n: 2, color: '#ffae57', kind: 'cat', body: '#f5a04a', belly: '#ffe2b8', acc: '#c8681f' },
+  { id: 'bunny', name: 'Bunny', n: 3, color: '#ffd3e6', kind: 'bunny', body: '#f4ecf1', belly: '#ffffff', acc: '#ff9fc2' },
+  { id: 'fox', name: 'Fox', n: 5, color: '#ff7a2c', kind: 'fox', body: '#ef6c22', belly: '#fff4e6', acc: '#3a2418' },
+  { id: 'dragon', name: 'Dragon', n: 10, color: '#4fd66a', kind: 'dragon', body: '#3fb35a', belly: '#d8f08a', acc: '#2a8a48' },
+  { id: 'phoenix', name: 'Phoenix', n: 25, color: '#ff5a36', kind: 'bird', body: '#ff5a2e', belly: '#ffcf4a', acc: '#ffa22e' },
+  { id: 'wolf', name: 'Mythic Shadow Wolf', n: 50, color: '#a493ff', kind: 'wolf', body: '#3b3560', belly: '#5a5290', acc: '#221d3d', eye: '#c3b4ff' },
+  { id: 'gdragon', name: 'Golden Dragon', n: 100, color: '#ffc23a', kind: 'dragon', body: '#f0b429', belly: '#fff0a8', acc: '#c98a12' },
+  { id: 'unicorn', name: 'Celestial Unicorn', n: 250, color: '#bfeaff', kind: 'unicorn', body: '#f2f6ff', belly: '#ffffff', acc: '#c9b6ff' },
+  { id: 'void', name: 'Void Beast', n: 1000, color: '#a95cff', kind: 'beast', body: '#24163f', belly: '#3a2566', acc: '#6a38b8', eye: '#e19cff' },
+  { id: 'cosmic', name: 'Cosmic Dragon', n: 5000, color: '#ff73d6', kind: 'dragon', body: '#3a2a8c', belly: '#ff8fd8', acc: '#ff5cc8', stars: true },
+  { id: 'duck', name: "Duncan's Duck", n: 100000, color: '#ffe83d', kind: 'duck', body: '#ffe03a', belly: '#fff6a8', acc: '#ff9a1f' },
+];
+const SEA = [
+  { id: 'puffer', name: 'Puffer Pup', n: 20, color: '#8fe8c8', kind: 'puffer', body: '#7ad9b6', belly: '#e9fff4', acc: '#3d9f86', sea: true },
+  { id: 'seahorse', name: 'Coral Seahorse', n: 150, color: '#ff8a7a', kind: 'seahorse', body: '#ff7d6b', belly: '#ffd2c2', acc: '#d4483a', sea: true },
+  { id: 'leviathan', name: 'Abyss Leviathan', n: 2500, color: '#3fe8d6', kind: 'serpent', body: '#1f6f86', belly: '#7ff0e0', acc: '#0f4258', eye: '#b8fff4', sea: true },
+];
+const LAGOON = P.flag('coral_lagoon'), FORGE = P.flag('pet_forge'), MOON = P.flag('moonlit_theme');
+const ALL = LAGOON ? PETS.concat(SEA) : PETS.slice();
+const BY = Object.fromEntries(ALL.map((p) => [p.id, p]));
+const WORLDS = [
+  { name: 'Sunny Meadow', icon: '🌼', goal: ['cat', 'bunny', 'fox', 'dragon'], bonus: 1, mote: 0,
+    sky: ['#5ec8ff', '#a6e4ff', '#e7f8ff'], far: '#8fd6a0', mid: '#5cbf6a', near: '#3da64f', ped: '#c98f55', sun: '#fff6b0' },
+  { name: 'Ember Peaks', icon: '🌋', goal: ['phoenix', 'wolf'], bonus: 1.25, mote: 1,
+    sky: ['#3b1e5c', '#c9466a', '#ffb066'], far: '#7a3a5e', mid: '#4f2546', near: '#3a1c34', ped: '#6b4a5a', sun: '#ffd27a' },
+  { name: 'Starfall Isles', icon: '✨', goal: ['gdragon', 'unicorn'], bonus: 1.5, mote: 2,
+    sky: ['#0d0f3a', '#2c2a7a', '#6a4fb8'], far: '#4b3f9a', mid: '#6a58c4', near: '#8a76e0', ped: '#a99be8', sun: '#e8f0ff' },
+];
+if (LAGOON) WORLDS.push({ name: 'Coral Lagoon', icon: '🐚', goal: ['puffer', 'seahorse'], bonus: 1.5, mote: 3,
+  sky: ['#06485e', '#0f8aa3', '#5fd3d0'], far: '#1c7a8a', mid: '#e5717a', near: '#f2d49a', ped: '#e8b47a', sun: '#bff6ff' });
+const DIFF = { easy: 1.5, normal: 1, hard: 0.6 };
+
+// ---------- state (declared before anything sizes the canvas) ----------
+const S = {
+  screen: 'title', rolls: 0, luck: 0, counts: {}, shiny: {}, world: 0, unlocked: 0, done: false, rarest: 0,
+  last: null, rolling: false, rollT: 0, tickT: 0, tickI: 0, cyc: 0, cycT: 0, auto: false, autoT: 0, overlay: null,
+  muted: !tuned('sound_on'), ts: 1, golden: false, moon: false, posts: [], pop: 0, flash: 0, t: 0, colOpen: false,
+};
+let level = 'normal', hs = null, forSale = [];
+
+// ---------- sprite painting ----------
+function blob(g, x, y, rx, ry, c, rot) {
+  g.save(); g.translate(x, y); g.rotate(rot || 0);
+  g.fillStyle = shade(c, -0.55); g.beginPath(); g.ellipse(0, 0, rx + 4, ry + 4, 0, 0, TAU); g.fill();
+  g.fillStyle = shade(c, -0.2); g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); g.fill();
+  g.fillStyle = c; g.beginPath(); g.ellipse(-rx * 0.05, -ry * 0.12, rx * 0.9, ry * 0.82, 0, 0, TAU); g.fill();
+  g.globalAlpha = 0.75; g.fillStyle = shade(c, 0.5); g.beginPath(); g.ellipse(-rx * 0.36, -ry * 0.46, rx * 0.3, ry * 0.18, -0.5, 0, TAU); g.fill();
+  g.restore();
+}
+function poly(g, pts, c, lw) {
+  g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath();
+  g.lineJoin = 'round'; g.lineWidth = lw || 8; g.strokeStyle = shade(c, -0.55); g.stroke(); g.fillStyle = c; g.fill();
+}
+function mirror(pts) { const o = []; for (let i = 0; i < pts.length; i += 2) o.push(256 - pts[i], pts[i + 1]); return o; }
+function pair(g, pts, c, lw) { poly(g, pts, c, lw); poly(g, mirror(pts), c, lw); }
+function curve(g, pts, c, w) {
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const [col, ww] of [[shade(c, -0.55), w + 8], [c, w], [shade(c, 0.35), w * 0.3]]) {
+    g.strokeStyle = col; g.lineWidth = ww; g.beginPath(); g.moveTo(pts[0], pts[1]);
+    g.bezierCurveTo(pts[2], pts[3], pts[4], pts[5], pts[6], pts[7]); g.stroke();
+  }
+}
+function eye(g, x, y, r, glow) {
+  g.fillStyle = glow || '#1b1530'; g.beginPath(); g.ellipse(x, y, r, r * 1.15, 0, 0, TAU); g.fill();
+  g.fillStyle = glow ? '#ffffff' : '#ffffff'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.4, r * 0.38, 0, TAU); g.fill();
+}
+function eyes(g, y, sp, r, glow) { eye(g, 128 - sp, y, r, glow); eye(g, 128 + sp, y, r, glow); }
+function cheeks(g, y, sp) { g.globalAlpha = 0.45; g.fillStyle = '#ff6f8f'; g.beginPath(); g.ellipse(128 - sp, y, 9, 6, 0, 0, TAU); g.ellipse(128 + sp, y, 9, 6, 0, 0, TAU); g.fill(); g.globalAlpha = 1; }
+function stars(g, n, seed, col) { let s = seed; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280; g.fillStyle = col; for (let i = 0; i < n; i++) { const x = 70 + r() * 116, y = 70 + r() * 140, z = 1 + r() * 3; g.beginPath(); g.arc(x, y, z, 0, TAU); g.fill(); } }
+function feet(g, c, y, sp) { for (const x of [128 - sp, 128 + sp]) { g.fillStyle = shade(c, -0.4); g.beginPath(); g.ellipse(x, y + 2, 17, 11, 0, 0, TAU); g.fill(); g.fillStyle = c; g.beginPath(); g.ellipse(x, y, 14, 8, 0, 0, TAU); g.fill(); g.fillStyle = shade(c, 0.4); g.beginPath(); g.ellipse(x - 4, y - 3, 5, 2.5, 0, 0, TAU); g.fill(); } }
+
+const KIND = {
+  cat(g, p) {
+    curve(g, [160, 200, 215, 200, 220, 150, 200, 112], p.body, 14);
+    blob(g, 128, 178, 52, 40, p.body); blob(g, 128, 190, 28, 22, p.belly); feet(g, p.body, 214, 26);
+    pair(g, [86, 96, 92, 46, 122, 78], p.body); pair(g, [94, 88, 97, 60, 114, 80], '#ffb3c6', 4);
+    blob(g, 128, 114, 50, 42, p.body);
+    g.strokeStyle = shade(p.body, -0.35); g.lineWidth = 5; g.lineCap = 'round';
+    for (const dx of [-14, 0, 14]) { g.beginPath(); g.moveTo(128 + dx, 76); g.lineTo(128 + dx * 0.8, 90); g.stroke(); }
+    eyes(g, 112, 19, 8); cheeks(g, 128, 32);
+    poly(g, [121, 124, 135, 124, 128, 131], '#ff7f9c', 3);
+    g.strokeStyle = '#5a3a2a'; g.lineWidth = 2;
+    for (const s of [-1, 1]) for (const dy of [-3, 4]) { g.beginPath(); g.moveTo(128 + s * 20, 128 + dy); g.lineTo(128 + s * 46, 124 + dy * 2); g.stroke(); }
+  },
+  bunny(g, p) {
+    blob(g, 106, 62, 14, 40, p.body, -0.15); blob(g, 150, 62, 14, 40, p.body, 0.15);
+    g.fillStyle = p.acc; g.beginPath(); g.ellipse(106, 66, 6, 28, -0.15, 0, TAU); g.ellipse(150, 66, 6, 28, 0.15, 0, TAU); g.fill();
+    blob(g, 178, 196, 16, 15, '#ffffff');
+    blob(g, 128, 180, 48, 40, p.body); blob(g, 128, 192, 26, 20, p.belly); feet(g, p.body, 216, 24);
+    blob(g, 128, 122, 44, 38, p.body);
+    eyes(g, 118, 17, 8); cheeks(g, 134, 30);
+    poly(g, [122, 128, 134, 128, 128, 134], '#ff8fb1', 3);
+    g.fillStyle = '#fff'; g.strokeStyle = '#8a7a86'; g.lineWidth = 2; g.fillRect(124, 137, 8, 8); g.strokeRect(124, 137, 8, 8);
+  },
+  fox(g, p) {
+    blob(g, 184, 166, 24, 50, p.body, -0.75); blob(g, 204, 132, 13, 16, p.belly, -0.75);
+    blob(g, 128, 180, 48, 38, p.body); blob(g, 128, 190, 24, 22, p.belly); feet(g, p.acc, 214, 24);
+    pair(g, [84, 100, 88, 44, 122, 82], p.body); pair(g, [86, 62, 88, 44, 100, 58], p.acc, 4);
+    blob(g, 128, 116, 50, 40, p.body);
+    blob(g, 104, 132, 22, 15, p.belly, 0.3); blob(g, 152, 132, 22, 15, p.belly, -0.3);
+    eyes(g, 110, 18, 7); g.fillStyle = '#2a1a14'; g.beginPath(); g.ellipse(128, 130, 7, 5, 0, 0, TAU); g.fill();
+  },
+  dragon(g, p) {
+    pair(g, [104, 150, 44, 84, 58, 122, 30, 130, 52, 148, 40, 170, 92, 172], p.acc);
+    curve(g, [150, 205, 200, 214, 222, 180, 214, 148], p.body, 15); poly(g, [204, 150, 230, 132, 222, 160], p.acc, 5);
+    blob(g, 128, 176, 50, 42, p.body); blob(g, 128, 186, 26, 28, p.belly);
+    g.strokeStyle = shade(p.belly, -0.3); g.lineWidth = 3; for (const y of [176, 188, 200]) { g.beginPath(); g.moveTo(108, y); g.quadraticCurveTo(128, y + 6, 148, y); g.stroke(); }
+    feet(g, p.body, 214, 28);
+    if (p.stars) stars(g, 14, 7, '#fff8c8');
+    pair(g, [96, 86, 82, 46, 108, 76], shade(p.belly, -0.1), 6);
+    blob(g, 128, 108, 46, 38, p.body); blob(g, 128, 128, 26, 16, shade(p.body, 0.25));
+    g.fillStyle = shade(p.body, -0.6); g.beginPath(); g.arc(120, 126, 3, 0, TAU); g.arc(136, 126, 3, 0, TAU); g.fill();
+    pair(g, [100, 74, 110, 60, 116, 74], p.acc, 4);
+    eyes(g, 104, 18, 8, p.stars ? '#ffe9ff' : null);
+  },
+  bird(g, p) {
+    for (const [r, l] of [[-0.5, 70], [0, 80], [0.5, 70]]) { g.save(); g.translate(128, 196); g.rotate(r + Math.PI); blob(g, 0, -l * 0.55, 13, l * 0.55, p.acc); g.restore(); }
+    blob(g, 76, 160, 20, 42, p.acc, 0.5); blob(g, 180, 160, 20, 42, p.acc, -0.5);
+    blob(g, 128, 166, 46, 50, p.body); blob(g, 128, 180, 26, 30, p.belly);
+    poly(g, [112, 82, 104, 48, 122, 70, 128, 38, 136, 70, 152, 48, 144, 82], '#ffcf3a', 6);
+    blob(g, 128, 104, 36, 34, p.body);
+    eyes(g, 100, 14, 7); poly(g, [118, 114, 138, 114, 128, 132], '#ffd23a', 4);
+    feet(g, '#ffb02e', 216, 18);
+  },
+  wolf(g, p) {
+    blob(g, 186, 160, 22, 46, p.body, -0.9); blob(g, 204, 128, 12, 14, p.belly, -0.9);
+    blob(g, 128, 180, 54, 40, p.body); feet(g, p.body, 214, 30);
+    pair(g, [84, 132, 72, 150, 92, 150, 82, 170, 104, 160], p.acc, 5);
+    pair(g, [88, 92, 92, 36, 122, 76], p.body); pair(g, [94, 84, 95, 54, 112, 76], p.acc, 4);
+    blob(g, 128, 114, 48, 40, p.body); blob(g, 128, 136, 24, 17, p.belly);
+    g.fillStyle = '#0d0a1a'; g.beginPath(); g.ellipse(128, 129, 8, 6, 0, 0, TAU); g.fill();
+    eyes(g, 108, 18, 7, p.eye);
+    stars(g, 6, 3, 'rgba(200,190,255,.6)');
+  },
+  unicorn(g, p) {
+    for (const x of [96, 116, 140, 160]) blob(g, x, 206, 9, 16, shade(p.body, -0.05));
+    curve(g, [80, 170, 50, 180, 50, 140, 64, 122], '#ffb6e6', 12);
+    blob(g, 128, 176, 54, 36, p.body);
+    const mane = ['#ff9ad5', '#ffd08a', '#9ef0c0', '#9ec8ff', '#c9a6ff'];
+    mane.forEach((c, i) => blob(g, 166 - i * 3, 86 + i * 16, 14, 12, c));
+    blob(g, 128, 108, 40, 40, p.body); blob(g, 128, 134, 26, 18, '#fff4fb');
+    poly(g, [120, 74, 128, 20, 136, 74], '#ffd75a', 5);
+    g.strokeStyle = '#c99a1e'; g.lineWidth = 2; for (const y of [60, 46, 34]) { g.beginPath(); g.moveTo(122, y + 6); g.lineTo(134, y); g.stroke(); }
+    pair(g, [94, 84, 96, 60, 110, 78], p.body, 5);
+    eyes(g, 106, 16, 7); cheeks(g, 122, 28);
+    g.fillStyle = '#c0a0c8'; g.beginPath(); g.arc(120, 138, 2.5, 0, TAU); g.arc(136, 138, 2.5, 0, TAU); g.fill();
+    stars(g, 8, 11, '#fff3a0');
+  },
+  beast(g, p) {
+    for (const x of [92, 116, 140, 164]) curve(g, [x, 196, x - 14, 214, x + 14, 222, x - 4, 236], p.acc, 9);
+    pair(g, [84, 112, 50, 60, 70, 64, 100, 100], shade(p.acc, 0.2), 6);
+    blob(g, 128, 156, 64, 58, p.body); blob(g, 128, 172, 36, 30, p.belly);
+    stars(g, 18, 5, 'rgba(230,180,255,.85)');
+    eye(g, 104, 134, 9, p.eye); eye(g, 152, 134, 9, p.eye); eye(g, 128, 112, 11, p.eye);
+    g.fillStyle = '#0a0414'; g.beginPath(); g.ellipse(128, 168, 26, 12, 0, 0, Math.PI); g.fill();
+    g.fillStyle = '#fff'; for (const x of [112, 126, 140]) { g.beginPath(); g.moveTo(x, 168); g.lineTo(x + 6, 168); g.lineTo(x + 3, 177); g.fill(); }
+  },
+  duck(g, p) {
+    poly(g, [176, 170, 206, 150, 196, 182], p.body, 6);
+    blob(g, 132, 180, 54, 40, p.body); blob(g, 124, 192, 30, 22, p.belly); blob(g, 150, 176, 26, 17, shade(p.body, -0.12), 0.2);
+    feet(g, '#ff9a1f', 218, 20);
+    blob(g, 116, 116, 38, 36, p.body);
+    blob(g, 80, 126, 26, 11, p.acc);
+    eye(g, 106, 108, 7); cheeks(g, 124, 0);
+    poly(g, [118, 150, 98, 140, 98, 160], '#e8344a', 4); poly(g, [118, 150, 138, 140, 138, 160], '#e8344a', 4);
+    blob(g, 118, 150, 5, 5, '#ff6070');
+    poly(g, [112, 80, 118, 64, 124, 80], shade(p.body, -0.1), 4);
+  },
+  puffer(g, p) {
+    for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, x = 128 + Math.cos(a) * 62, y = 150 + Math.sin(a) * 58; poly(g, [x - 6, y, x + Math.cos(a) * 18, y + Math.sin(a) * 18, x + 6, y], p.acc, 4); }
+    poly(g, [190, 150, 226, 124, 226, 176], p.acc, 6);
+    blob(g, 128, 150, 62, 58, p.body); blob(g, 128, 170, 40, 28, p.belly);
+    for (const [x, y] of [[96, 120], [150, 112], [168, 140], [104, 150]]) { g.fillStyle = shade(p.body, -0.3); g.beginPath(); g.arc(x, y, 5, 0, TAU); g.fill(); }
+    eyes(g, 136, 20, 10); g.fillStyle = '#c0405a'; g.beginPath(); g.ellipse(128, 166, 7, 5, 0, 0, TAU); g.fill();
+  },
+  seahorse(g, p) {
+    curve(g, [128, 190, 130, 236, 170, 230, 160, 204], p.body, 16);
+    poly(g, [158, 120, 190, 130, 182, 170, 158, 166], p.acc, 5);
+    blob(g, 128, 160, 34, 46, p.body); blob(g, 120, 168, 16, 32, p.belly);
+    g.strokeStyle = shade(p.belly, -0.3); g.lineWidth = 3; for (const y of [146, 160, 174, 188]) { g.beginPath(); g.moveTo(108, y); g.lineTo(132, y); g.stroke(); }
+    blob(g, 132, 96, 30, 28, p.body); blob(g, 96, 104, 22, 9, p.body, -0.1);
+    poly(g, [124, 72, 128, 50, 136, 70, 144, 54, 146, 76], p.acc, 4);
+    eye(g, 136, 92, 7);
+  },
+  serpent(g, p) {
+    [[176, 196, 26], [128, 206, 30], [84, 190, 26], [70, 150, 22]].forEach(([x, y, r]) => { blob(g, x, y, r, r * 0.85, p.body); g.fillStyle = p.belly; g.beginPath(); g.ellipse(x, y + r * 0.4, r * 0.55, r * 0.25, 0, 0, TAU); g.fill(); });
+    curve(g, [176, 196, 214, 190, 222, 160, 206, 150], p.body, 16);
+    pair(g, [94, 96, 70, 70, 102, 84], p.belly, 5);
+    blob(g, 128, 112, 46, 40, p.body); blob(g, 128, 136, 30, 16, shade(p.body, 0.2));
+    eyes(g, 106, 18, 8, p.eye);
+    g.fillStyle = '#fff'; for (const x of [116, 136]) { g.beginPath(); g.moveTo(x, 142); g.lineTo(x + 6, 142); g.lineTo(x + 3, 151); g.fill(); }
+    stars(g, 8, 9, 'rgba(180,255,240,.7)');
+  },
+};
+
+function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const SPR = {};
+function makeSprites() {
+  for (const p of ALL) {
+    const img = canvas(256, 256), g = img.getContext('2d');
+    KIND[p.kind](g, p);
+    const sil = canvas(256, 256), s = sil.getContext('2d');
+    s.drawImage(img, 0, 0); s.globalCompositeOperation = 'source-in'; s.fillStyle = '#2a2f4a'; s.fillRect(0, 0, 256, 256);
+    const sh = canvas(256, 256), h = sh.getContext('2d');
+    h.drawImage(img, 0, 0); h.globalCompositeOperation = 'source-atop';
+    const gr = h.createLinearGradient(0, 0, 256, 256); gr.addColorStop(0, 'rgba(255,255,255,.45)'); gr.addColorStop(0.5, 'rgba(255,215,80,.25)'); gr.addColorStop(1, 'rgba(255,120,220,.35)');
+    h.fillStyle = gr; h.fillRect(0, 0, 256, 256); h.globalCompositeOperation = 'source-over';
+    h.fillStyle = '#fff6a0'; for (const [x, y, r] of [[60, 60, 9], [200, 80, 7], [190, 200, 8], [70, 190, 6]]) { h.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr = i % 2 ? r * 0.35 : r; h.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } h.fill(); }
+    const glow = canvas(256, 256), q = glow.getContext('2d');
+    const rg = q.createRadialGradient(128, 128, 10, 128, 128, 128); const c = rgb(p.color);
+    rg.addColorStop(0, 'rgba(' + c + ',.75)'); rg.addColorStop(0.5, 'rgba(' + c + ',.25)'); rg.addColorStop(1, 'rgba(' + c + ',0)');
+    q.fillStyle = rg; q.fillRect(0, 0, 256, 256);
+    SPR[p.id] = { img, sil, sh, glow, url: img.toDataURL(), silUrl: sil.toDataURL(), shUrl: sh.toDataURL() };
+  }
+  const egg = canvas(256, 256), e = egg.getContext('2d');
+  blob(e, 128, 150, 58, 72, '#f4f1ff');
+  e.fillStyle = '#b8b0ff'; for (const [x, y, r] of [[100, 120, 10], [150, 104, 8], [158, 170, 12], [104, 180, 7]]) { e.beginPath(); e.arc(x, y, r, 0, TAU); e.fill(); }
+  e.fillStyle = '#6a5fd0'; e.font = '900 70px Trebuchet MS,sans-serif'; e.textAlign = 'center'; e.textBaseline = 'middle'; e.fillText('?', 128, 156);
+  SPR.egg = { img: egg };
+  const shadow = canvas(128, 40), d = shadow.getContext('2d');
+  const sg = d.createRadialGradient(64, 20, 2, 64, 20, 60); sg.addColorStop(0, 'rgba(0,0,0,.4)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  d.fillStyle = sg; d.save(); d.scale(1, 0.33); d.beginPath(); d.arc(64, 60, 60, 0, TAU); d.restore(); d.fill();
+  SPR.shadow = shadow;
+}
+
+// ---------- background ----------
+const cv = $('cv'), ctx = cv.getContext('2d');
+let bg = canvas(4, 4), ped = canvas(4, 4), view = { w: 1, h: 1, scale: 1 };
+function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function nightify(w) {
+  return Object.assign({}, w, { sky: ['#050816', '#141a44', shade(w.sky[0], -0.55)], far: shade(w.far, -0.5), mid: shade(w.mid, -0.5), near: shade(w.near, -0.45), sun: '#f4f1d8', night: true });
+}
+function ridge(g, W, H, baseY, amp, seed, col, jag) {
+  const r = rnd(seed), pts = [];
+  const step = W / (jag ? 9 : 6);
+  for (let x = -step; x <= W + step; x += step) pts.push([x, baseY - r() * amp]);
+  const path = (dy) => {
+    g.beginPath(); g.moveTo(-10, H + 10); g.lineTo(pts[0][0], pts[0][1] + dy);
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      if (jag) g.lineTo(x1, y1 + dy); else g.quadraticCurveTo(x0 + step / 2, Math.min(y0, y1) - amp * 0.25 + dy, x1, y1 + dy);
+    }
+    g.lineTo(W + 10, H + 10); g.closePath();
+  };
+  path(0); g.fillStyle = shade(col, 0.28); g.fill();
+  path(6); const gr = g.createLinearGradient(0, baseY - amp, 0, H); gr.addColorStop(0, col); gr.addColorStop(1, shade(col, -0.35)); g.fillStyle = gr; g.fill();
+  g.fillStyle = shade(col, -0.18); for (let i = 0; i < 40; i++) { const x = r() * W, y = baseY + r() * (H - baseY); g.beginPath(); g.ellipse(x, y, 3 + r() * 4, 2, 0, 0, TAU); g.fill(); }
+}
+function buildBg() {
+  const W = view.w, H = view.h;
+  bg.width = W; bg.height = H;
+  const g = bg.getContext('2d'), w0 = WORLDS[S.world], w = S.moon ? nightify(w0) : w0, r = rnd(17 + S.world);
+  const sk = g.createLinearGradient(0, 0, 0, H); sk.addColorStop(0, w.sky[0]); sk.addColorStop(0.55, w.sky[1]); sk.addColorStop(1, w.sky[2]);
+  g.fillStyle = sk; g.fillRect(0, 0, W, H);
+  const u = Math.min(W, H);
+  if (w.night || S.world === 2) { g.fillStyle = '#fff'; for (let i = 0; i < 140; i++) { g.globalAlpha = 0.3 + r() * 0.7; g.beginPath(); g.arc(r() * W, r() * H * 0.7, r() * 1.8 + 0.4, 0, TAU); g.fill(); } g.globalAlpha = 1; }
+  const sx = W * 0.8, sy = H * 0.18, sr = u * 0.08;
+  const sg = g.createRadialGradient(sx, sy, sr * 0.5, sx, sy, sr * 3); sg.addColorStop(0, w.sun); sg.addColorStop(0.35, 'rgba(255,255,255,.18)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = sg; g.fillRect(sx - sr * 3, sy - sr * 3, sr * 6, sr * 6);
+  g.fillStyle = w.sun; g.beginPath(); g.arc(sx, sy, sr, 0, TAU); g.fill();
+  if (S.world === 3) { g.globalAlpha = 0.12; g.fillStyle = '#fff'; for (let i = 0; i < 5; i++) { const x = r() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + u * 0.08, 0); g.lineTo(x + u * 0.3, H); g.lineTo(x + u * 0.12, H); g.fill(); } g.globalAlpha = 1; }
+  if (S.world === 0 && !w.night) { g.fillStyle = 'rgba(255,255,255,.9)'; for (let i = 0; i < 5; i++) { const x = r() * W, y = H * (0.08 + r() * 0.25), s = u * (0.04 + r() * 0.04); for (const [dx, dy, k] of [[0, 0, 1], [s, -s * 0.4, 1.2], [s * 2, 0, 0.9]]) { g.beginPath(); g.arc(x + dx, y + dy, s * k, 0, TAU); g.fill(); } } }
+  if (S.world === 2) { for (let i = 0; i < 4; i++) { const x = W * (0.12 + i * 0.25) + r() * 40, y = H * (0.3 + r() * 0.2), s = u * (0.05 + r() * 0.04); blobBg(g, x, y, s * 1.6, s * 0.5, w.near); g.fillStyle = shade(w.far, -0.3); g.beginPath(); g.moveTo(x - s * 1.4, y + s * 0.2); g.lineTo(x, y + s * 1.6); g.lineTo(x + s * 1.4, y + s * 0.2); g.fill(); } }
+  ridge(g, W, H, H * 0.62, H * 0.22, 3 + S.world, w.far, S.world === 1);
+  if (S.world === 1) { for (let i = 0; i < 4; i++) { const x = r() * W, y = H * (0.62 + r() * 0.1); const lg = g.createRadialGradient(x, y, 2, x, y, u * 0.1); lg.addColorStop(0, 'rgba(255,150,60,.55)'); lg.addColorStop(1, 'rgba(255,90,40,0)'); g.fillStyle = lg; g.fillRect(x - u * 0.1, y - u * 0.1, u * 0.2, u * 0.2); } }
+  ridge(g, W, H, H * 0.74, H * 0.14, 9 + S.world, w.mid, S.world === 1 || S.world === 3);
+  ridge(g, W, H, H * 0.88, H * 0.06, 21 + S.world, w.near, false);
+  const vg = g.createRadialGradient(W / 2, H * 0.45, u * 0.3, W / 2, H * 0.5, Math.max(W, H) * 0.8);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,8,30,.45)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  // pedestal sprite for this world
+  const pc = w.ped; ped = canvas(300, 90); const q = ped.getContext('2d');
+  q.fillStyle = shade(pc, -0.55); q.beginPath(); q.ellipse(150, 50, 140, 34, 0, 0, TAU); q.fill();
+  q.fillStyle = shade(pc, -0.25); q.beginPath(); q.ellipse(150, 46, 134, 30, 0, 0, TAU); q.fill();
+  q.fillStyle = pc; q.beginPath(); q.ellipse(150, 38, 130, 26, 0, 0, TAU); q.fill();
+  q.fillStyle = shade(pc, 0.35); q.beginPath(); q.ellipse(150, 34, 112, 16, 0, 0, TAU); q.fill();
+}
+function blobBg(g, x, y, rx, ry, c) { g.fillStyle = shade(c, -0.3); g.beginPath(); g.ellipse(x, y + 4, rx, ry, 0, 0, TAU); g.fill(); g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry * 0.85, 0, 0, TAU); g.fill(); g.fillStyle = shade(c, 0.35); g.beginPath(); g.ellipse(x - rx * 0.2, y - ry * 0.3, rx * 0.5, ry * 0.25, 0, 0, TAU); g.fill(); }
+
+// ---------- particles / motes (fixed pools) ----------
+const PART = Array.from({ length: 300 }, () => ({ on: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, col: '#fff', size: 4, sq: false }));
+const MOTES = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), s: 0.5 + Math.random(), ph: Math.random() * TAU }));
+function burst(x, y, n, cols, speed) {
+  for (const p of PART) {
+    if (n <= 0) break; if (p.on) continue; n--;
+    const a = Math.random() * TAU, v = (0.3 + Math.random()) * speed;
+    Object.assign(p, { on: true, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.4, life: 0, max: 0.7 + Math.random() * 0.8, col: cols[(Math.random() * cols.length) | 0], size: (2 + Math.random() * 4) * view.scale, sq: Math.random() < 0.5 });
+  }
+}
+
+// ---------- audio (WebAudio synth, effects only) ----------
+let AC = null, master = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = S.muted ? 0 : 0.5; master.connect(AC.destination); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended' && !P.paused) AC.resume().catch(() => {});
+}
+function tone(f, at, dur, type, vol, slide) {
+  if (!AC || S.muted) return;
+  const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime + (at || 0);
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(f * slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+const SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.5, 1568, 1760, 2093];
+const SFX = {
+  click() { tone(660, 0, 0.06, 'triangle', 0.15); },
+  tick(i) { tone(380 + (i % 5) * 70, 0, 0.045, 'square', 0.05); },
+  reveal(p) {
+    const tier = Math.log10(p.n), notes = 2 + Math.round(tier * 1.6);
+    for (let i = 0; i < notes; i++) tone(SCALE[Math.min(SCALE.length - 1, i + (tier > 2 ? 2 : 0))], i * 0.07, 0.28, 'triangle', 0.2);
+    if (p.n >= 100) { tone(110, 0, 0.6, 'sine', 0.35, 0.5); for (let i = 0; i < 6; i++) tone(2400 + i * 300, 0.35 + i * 0.05, 0.2, 'sine', 0.06); }
+    if (p.n >= 1000) { [261.6, 329.6, 392, 523.3].forEach((f) => tone(f, 0.5, 1.4, 'sawtooth', 0.06)); }
+  },
+  fanfare() { [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((f, i) => tone(f, i * 0.11, 0.3, 'triangle', 0.2)); tone(130, 0, 0.8, 'sine', 0.25); },
+  fuse() { for (let i = 0; i < 8; i++) tone(800 + i * 160, i * 0.04, 0.15, 'sine', 0.12); },
+};
+function setMuted(m) { S.muted = m; $('muteBtn').textContent = m ? '🔇' : '🔊'; if (master) master.gain.value = m ? 0 : 0.5; }
+
+// ---------- rolling ----------
+function shinyTotal() { let n = 0; for (const k in S.shiny) n += S.shiny[k]; return n; }
+function luckMult() {
+  const forge = FORGE ? Math.min(2, 1 + 0.05 * shinyTotal()) : 1;
+  return (1 + S.luck * tuned('luck_boost') / 100 * DIFF[level]) * WORLDS[S.world].bonus * forge;
+}
+function chance(p) { return p.n >= 10 ? Math.min(0.5, luckMult() / p.n) : 1 / p.n; }
+function table() { return (S.world === 3 && LAGOON ? PETS.concat(SEA) : PETS).slice().sort((a, b) => b.n - a.n); }
+function pick() {
+  for (const p of table()) { if (p.id === 'cat') continue; if (Math.random() < chance(p)) return p; }
+  return BY.cat;
+}
+function roll() {
+  audio();
+  if (S.screen !== 'play' || S.rolling || S.overlay || P.paused) return false;
+  S.rolling = true; S.rollT = 0; S.tickT = 0; S.tickI = 0; S.cycT = 0;
+  S.rolls++; S.luck++;
+  $('rollBtn').classList.add('busy');
+  $('yr').textContent = 'Rolling...'; $('pn').textContent = '• • •'; $('pn').style.color = '#fff'; $('po').textContent = 'Luck +1';
+  if (S.golden) { const b = $('rollBtn').getBoundingClientRect(); burst((b.left + b.width / 2) * view.scale, (b.top + b.height / 2) * view.scale, 18, ['#ffe36a', '#fff6c0', '#ffb820'], 160 * view.scale); }
+  updateHud();
+  return true;
+}
+function reveal() {
+  const p = pick(); S.rolling = false;
+  $('rollBtn').classList.remove('busy');
+  const isNew = !S.counts[p.id];
+  S.counts[p.id] = (S.counts[p.id] || 0) + 1; S.last = p.id; S.pop = 1;
+  const st = stageRect(), cx = st.x + st.w / 2, cy = st.y + st.h * 0.55;
+  burst(cx, cy, Math.min(120, 14 + Math.round(Math.log10(p.n) * 26)), [p.color, '#ffffff', shade(p.color, 0.4)], (160 + Math.log10(p.n) * 90) * view.scale);
+  if (p.n >= 100) S.flash = 0.8;
+  SFX.reveal(p);
+  $('yr').textContent = 'You rolled...';
+  $('pn').innerHTML = ''; $('pn').append(p.name); if (isNew) { const s = document.createElement('span'); s.className = 'new'; s.textContent = 'NEW'; $('pn').append(s); }
+  $('pn').style.color = p.color;
+  $('po').textContent = '1 in ' + fmt(p.n) + (S.counts[p.id] > 1 ? '  ·  owned ×' + S.counts[p.id] : '');
+  if (P.flag('mobile')) { try { navigator.vibrate && navigator.vibrate(p.n >= 100 ? [40, 40, 80] : 15); } catch (e) { /* no haptics */ } }
+  if (p.n > S.rarest) { S.rarest = p.n; post('whimcade:score', { score: p.n }); }
+  if (hs && p.n >= 25) { if (hs.add(p.n)) toast('New rarest pull: ' + p.name + '!'); }
+  if (p.n >= 1000) toast('LEGENDARY! ' + p.name + ' (1 in ' + fmt(p.n) + ')');
+  else if (isNew) toast('New pet discovered: ' + p.name);
+  renderCollection(); updateGoal(); updateHud();
+  if (isNew || S.rolls % 10 === 0) save();
+  checkGoals();
+}
+function goalDone(i) { return WORLDS[i].goal.every((id) => S.counts[id] || (S.shiny[id] || 0) > 0); }
+function checkGoals() {
+  const i = S.world;
+  if (S.unlocked !== i || !goalDone(i)) return;
+  if (i + 1 < WORLDS.length) S.unlocked = i + 1;
+  save();
+  if (i === 2 && !S.done) {
+    S.done = true; post('whimcade:complete', {}); SFX.fanfare();
+    const lag = LAGOON ? ' The Coral Lagoon has surfaced, with three sea pets to find.' : '';
+    showMsg('You are a Legend of Rolling!', 'All three worlds cleared in ' + fmt(S.rolls) + ' rolls. Keep rolling to chase the Void Beast, the Cosmic Dragon and the mysterious Duncan\'s Duck.' + lag,
+      ['gdragon', 'unicorn', 'duck'], LAGOON ? 'Travel to Coral Lagoon' : 'Keep rolling', LAGOON ? () => travel(3) : null, LAGOON ? 'Keep rolling here' : null, true);
+  } else if (i < 2) {
+    SFX.fanfare();
+    const nx = WORLDS[i + 1];
+    const auto = i === 0 && tuned('auto_roll') ? ' Auto Roll is now unlocked: tap AUTO to keep rolling hands-free.' : '';
+    showMsg('World cleared!', WORLDS[i].name + ' is complete. ' + nx.name + ' is open, and its pets are rarer, but the world boosts your rare chance ×' + nx.bonus + '.' + auto,
+      nx.goal, 'Travel to ' + nx.name, () => travel(i + 1), 'Stay here');
+  } else if (i === 3) {
+    SFX.fanfare();
+    showMsg('Lagoon cleared!', 'You found the Coral Lagoon\'s pets. The Abyss Leviathan (1 in 2,500) still lurks in the deep.', ['puffer', 'seahorse', 'leviathan'], 'Keep rolling', null);
+  }
+  updateHud();
+}
+function travel(i) {
+  if (i < 0 || i > S.unlocked) return;
+  S.world = i; S.auto = false; buildBg(); updateGoal(); updateHud(); save(); checkGoals();
+}
+
+// ---------- UI ----------
+let toastT = 0;
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); toastT = 2.2; }
+function showMsg(title, text, pets, btn, fn, btn2, withHs) {
+  S.overlay = 'msg'; S.auto = false;
+  $('msgTitle').textContent = title; $('msgText').textContent = text;
+  const box = $('msgPets'); box.innerHTML = '';
+  for (const id of pets || []) { if (!BY[id]) continue; const im = new Image(); const got = S.counts[id] || S.shiny[id]; im.src = got ? SPR[id].url : SPR[id].silUrl; im.alt = got ? BY[id].name : 'Unknown pet'; box.append(im); }
+  if (withHs && hs) $('msgHs').appendChild($('hsBox'));
+  $('msgBtn').textContent = btn || 'OK';
+  $('msgBtn').onclick = null; msgFn = fn;
+  $('msgBtn2').style.display = btn2 ? '' : 'none'; $('msgBtn2').textContent = btn2 || '';
+  $('msgOv').hidden = false; updateHud();
+}
+let msgFn = null;
+function closeMsg(go) { $('msgOv').hidden = true; S.overlay = null; const f = msgFn; msgFn = null; if (go && f) f(); updateHud(); }
+function tap(el, fn) {
+  el.addEventListener('click', (e) => { e.stopPropagation(); fn(e); });
+  el.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); fn(e); }, { passive: false });
+}
+function updateHud() {
+  $('rolls').textContent = fmt(S.rolls); $('luck').textContent = fmt(S.luck);
+  const w = WORLDS[S.world];
+  $('worldBtn').textContent = w.icon + ' ' + w.name + (S.unlocked > 0 ? ' ▸' : '');
+  $('autoBtn').style.display = tuned('auto_roll') && S.unlocked >= 1 ? '' : 'none';
+  $('autoBtn').classList.toggle('on', S.auto); $('autoBtn').textContent = S.auto ? 'AUTO ON' : 'AUTO';
+  $('rollBtn').textContent = S.rolling ? '...' : ROLL_LABEL;
+  $('rollBtn').classList.toggle('gold', S.golden);
+}
+function updateGoal() {
+  const w = WORLDS[S.world], g = $('goal'); g.innerHTML = '';
+  const lead = document.createElement('span'); lead.textContent = goalDone(S.world) ? 'Cleared! ' : 'Find: '; g.append(lead);
+  w.goal.forEach((id, k) => {
+    const got = S.counts[id] || S.shiny[id], s = document.createElement('span');
+    s.className = got ? 'ok' : 'todo'; s.textContent = (got ? '✓ ' : '') + BY[id].name + (got ? '' : ' (1 in ' + fmt(BY[id].n) + ')');
+    g.append(s); if (k < w.goal.length - 1) g.append(' · ');
+  });
+  const lk = document.createElement('div'); lk.style.cssText = 'font-size:.9em;color:#5a6488';
+  lk.textContent = 'Rare chance ×' + luckMult().toFixed(2) + ' on 1-in-10+ pets'; g.append(lk);
+}
+function renderCollection() {
+  const list = ALL;
+  const found = list.filter((p) => S.counts[p.id] || S.shiny[p.id]).length;
+  for (const [gid, cid] of [['sideGrid', 'sideCount'], ['ovGrid', 'ovCount']]) {
+    const grid = $(gid); grid.innerHTML = '';
+    $(cid).textContent = found + '/' + list.length + ' found';
+    for (const p of list) {
+      const n = S.counts[p.id] || 0, sh = S.shiny[p.id] || 0, got = n > 0 || sh > 0;
+      const c = document.createElement('div'); c.className = 'card' + (got ? ' got' : '');
+      const im = new Image(); im.src = sh ? SPR[p.id].shUrl : got ? SPR[p.id].url : SPR[p.id].silUrl; im.alt = got ? p.name : 'Undiscovered pet';
+      const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = got ? p.name : '???'; nm.style.color = got ? p.color : '#9aa3c0';
+      const od = document.createElement('div'); od.className = 'od'; od.textContent = '1 in ' + fmt(p.n) + (p.sea ? ' · Lagoon' : '');
+      c.append(im, nm, od);
+      if (n) { const ct = document.createElement('div'); ct.className = 'ct'; ct.textContent = '×' + fmt(n); c.append(ct); }
+      if (sh) { const s = document.createElement('div'); s.className = 'sh'; s.textContent = '✦' + sh; c.append(s); }
+      if (FORGE && n >= 5) { const b = document.createElement('button'); b.className = 'fuse'; b.textContent = 'Fuse 5 → Shiny ✦'; tap(b, () => fuse(p.id)); c.append(b); }
+      grid.append(c);
+    }
+  }
+}
+function fuse(id) {
+  if (!FORGE || (S.counts[id] || 0) < 5) return;
+  S.counts[id] -= 5; S.shiny[id] = (S.shiny[id] || 0) + 1; audio(); SFX.fuse();
+  toast('Shiny ' + BY[id].name + ' forged! Rare chance ×' + luckMult().toFixed(2));
+  const st = stageRect(); burst(st.x + st.w / 2, st.y + st.h / 2, 60, ['#ffe36a', '#ffffff', '#ff9ae6'], 220 * view.scale);
+  S.last = id; S.lastShiny = true; S.pop = 1;
+  renderCollection(); updateGoal(); save();
+}
+function openCol(on) { S.colOpen = on; $('colOv').hidden = !on; if (on) S.auto = false; updateHud(); }
+
+// ---------- save relay ----------
+function post(type, fields) { S.posts.push(type); if (S.posts.length > 40) S.posts.shift(); P.post(type, fields); }
+function snapshot() { return { v: 1, rolls: S.rolls, luck: S.luck, counts: S.counts, shiny: S.shiny, world: S.world, unlocked: S.unlocked, done: S.done, rarest: S.rarest, golden: S.golden, moon: S.moon, hs: hs ? hs.snapshot() : null }; }
+function save() { post('whimcade:save', { data: snapshot() }); }
+function cleanCounts(o) { const out = {}; if (o && typeof o === 'object') for (const k in o) { const v = o[k]; if (BY[k] && typeof v === 'number' && isFinite(v) && v > 0) out[k] = Math.floor(v); } return out; }
+function applySave(d) {
+  if (!d || typeof d !== 'object' || d.v !== 1) return false;
+  const rolls = Math.floor(+d.rolls), luck = Math.floor(+d.luck);
+  if (!isFinite(rolls) || rolls < 0 || !isFinite(luck) || luck < 0) return false;
+  if (rolls < S.rolls) return false; // a late reply never rolls progress back
+  S.rolls = rolls; S.luck = luck; S.counts = cleanCounts(d.counts); S.shiny = cleanCounts(d.shiny);
+  const maxW = WORLDS.length - 1;
+  S.unlocked = Math.max(0, Math.min(maxW, Math.floor(+d.unlocked) || 0));
+  S.world = Math.max(0, Math.min(S.unlocked, Math.floor(+d.world) || 0));
+  S.done = d.done === true; S.rarest = isFinite(+d.rarest) ? +d.rarest : 0;
+  if (MOON && d.moon === true) S.moon = true;
+  if (hs && d.hs) hs.restore(d.hs);
+  buildBg(); renderCollection(); updateGoal(); updateHud();
+  if (S.last == null && S.rolls > 0) { $('yr').textContent = 'Welcome back!'; $('pn').textContent = fmt(S.rolls) + ' rolls so far'; $('pn').style.color = '#fff'; $('po').textContent = 'Your collection is saved'; }
+  return true;
+}
+
+// ---------- paid extra ----------
+function grantGolden() { S.golden = true; updateHud(); refreshBuy(); }
+function refreshBuy() {
+  const it = forSale.find((x) => x && x.key === 'golden_dice');
+  document.querySelectorAll('.buyGold').forEach((b) => {
+    b.style.display = it && !S.golden ? '' : 'none';
+    b.textContent = 'Unlock Golden ROLL button' + (it && it.price_coins ? ' (' + it.price_coins + ' coins)' : '');
+  });
+}
+document.querySelectorAll('.buyGold').forEach((b) => tap(b, () => P.post('whimcade:purchase', { item: 'golden_dice' })));
+P.on('whimcade:owned', (m) => {
+  forSale = Array.isArray(m.for_sale) ? m.for_sale : [];
+  if (Array.isArray(m.items) && m.items.indexOf('golden_dice') >= 0) grantGolden();
+  refreshBuy();
+});
+P.on('whimcade:purchased', (m) => { if (m.item === 'golden_dice' && m.ok === true) { grantGolden(); toast('Golden ROLL button unlocked!'); } });
+P.on('whimcade:load', (m) => { applySave(m.data); });
+
+// ---------- layout / render ----------
+function stageRect() {
+  const r = $('stage').getBoundingClientRect(), k = view.scale;
+  return { x: r.left * k, y: r.top * k, w: r.width * k, h: r.height * k };
+}
+view = P.fit(cv, { budget: 9e5, onResize: (st) => { view = st; buildBg(); } });
+
+function drawPet(sprite, cx, baseY, size, sx, sy, alpha) {
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  const w = size * sx, h = size * sy;
+  ctx.drawImage(sprite, cx - w / 2, baseY - h * 0.88, w, h);
+  ctx.globalAlpha = 1;
+}
+function render(dt) {
+  const W = view.w, H = view.h;
+  ctx.drawImage(bg, 0, 0, W, H);
+  // ambient motes
+  const mt = WORLDS[S.world].mote, mc = ['rgba(255,250,190,.85)', 'rgba(255,150,70,.9)', 'rgba(255,255,255,.9)', 'rgba(220,255,255,.7)'][mt];
+  ctx.fillStyle = mc; ctx.strokeStyle = mc; ctx.lineWidth = 1.5 * view.scale;
+  for (const m of MOTES) {
+    m.y -= dt * 0.02 * m.s * (mt === 1 || mt === 3 ? 2.5 : 1); m.ph += dt;
+    if (m.y < -0.02) { m.y = 1.02; m.x = Math.random(); }
+    const x = (m.x + Math.sin(m.ph * 0.8) * 0.01) * W, y = m.y * H, r = (1.5 + m.s * 1.5) * view.scale;
+    if (mt === 2) ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(m.ph * 2));
+    ctx.beginPath(); ctx.arc(x, y, mt === 3 ? r * 1.8 : r, 0, TAU); if (mt === 3) ctx.stroke(); else ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // stage
+  const st = stageRect();
+  if (st.h > 20) {
+    const size = Math.min(st.w * 0.8, st.h * 0.95), cx = st.x + st.w / 2, baseY = st.y + st.h * 0.96;
+    const pw = size * 1.15;
+    ctx.drawImage(ped, cx - pw / 2, baseY - pw * 0.17, pw, pw * 0.3);
+    const bob = Math.sin(S.t * 2.4) * size * 0.025;
+    let sx = 1, sy = 1;
+    if (S.pop > 0) { const e = S.pop; sx = 1 + Math.sin(e * 9) * 0.22 * e; sy = 1 - Math.sin(e * 9) * 0.18 * e; }
+    else { sy = 1 + Math.sin(S.t * 2.4) * 0.02; sx = 2 - sy; }
+    ctx.drawImage(SPR.shadow, cx - size * 0.35 * sx, baseY - size * 0.06, size * 0.7 * sx, size * 0.12);
+    if (S.rolling) {
+      const p = ALL[S.cyc % ALL.length], j = (Math.random() - 0.5) * size * 0.03;
+      drawPet(SPR[p.id].sil, cx + j, baseY + bob, size, 1, 1, 0.9);
+    } else if (S.last) {
+      const p = BY[S.last];
+      if (p.n >= 25) { const gs = size * (1.35 + Math.sin(S.t * 3) * 0.05); ctx.globalAlpha = 0.85; ctx.drawImage(SPR[p.id].glow, cx - gs / 2, baseY - size * 0.45 - gs / 2, gs, gs); ctx.globalAlpha = 1; }
+      drawPet(S.lastShiny ? SPR[p.id].sh : SPR[p.id].img, cx, baseY + bob, size, sx, sy);
+    } else {
+      drawPet(SPR.egg.img, cx, baseY + bob, size * 0.85, sx, sy);
+    }
+  }
+  // particles
+  for (const p of PART) {
+    if (!p.on) continue;
+    p.life += dt; if (p.life >= p.max) { p.on = false; continue; }
+    p.vy += 420 * view.scale * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    ctx.globalAlpha = 1 - p.life / p.max; ctx.fillStyle = p.col;
+    if (p.sq) ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); else { ctx.beginPath(); ctx.arc(p.x, p.y, p.size / 2, 0, TAU); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+  if (S.flash > 0) { ctx.globalAlpha = Math.min(1, S.flash) * 0.6; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+}
+let lastT = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
+  if (P.paused || document.hidden) return;
+  const gdt = dt * S.ts; S.t += dt;
+  if (S.rolling) {
+    S.rollT += gdt; S.tickT += gdt; S.cycT += gdt;
+    if (S.cycT > 0.06) { S.cycT = 0; S.cyc = (S.cyc + 1 + ((Math.random() * 3) | 0)); }
+    if (S.tickT > 0.075) { S.tickT = 0; SFX.tick(S.tickI++); }
+    if (S.rollT >= tuned('roll_time')) { S.lastShiny = false; reveal(); }
+  } else if (S.auto && S.screen === 'play' && !S.overlay && !S.colOpen) {
+    S.autoT += gdt; if (S.autoT > 0.25) { S.autoT = 0; roll(); }
+  }
+  if (S.pop > 0) S.pop = Math.max(0, S.pop - dt * 2.2);
+  if (S.flash > 0) S.flash = Math.max(0, S.flash - dt * 2);
+  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('show'); }
+  render(dt);
+}
+
+// ---------- boot ----------
+makeSprites();
+buildBg();
+for (const id of ['cat', 'fox', 'phoenix', 'unicorn']) { const im = new Image(); im.src = SPR[id].url; im.alt = BY[id].name; $('titlePets').append(im); }
+$('hint').textContent = P.input === 'touch' ? 'Tap ROLL to roll' : 'Space or Enter to roll · C for collection';
+setMuted(S.muted);
+if (P.flag('mobile')) {
+  const on = () => document.body.classList.add('m1');
+  if (P.input !== 'mouse') on();
+  window.addEventListener('touchstart', on, { capture: true, passive: true });
+}
+if (P.flag('fullscreen')) { $('fsBtn').style.display = ''; P.fullscreenButton($('fsBtn')); }
+if (P.flag('pause')) {
+  $('pauseBtn').style.display = '';
+  P.pause({ button: $('pauseBtn'), overlay: $('pauseOv'), onPause: () => { if (AC) AC.suspend().catch(() => {}); }, onResume: () => { lastT = performance.now(); if (AC) AC.resume().catch(() => {}); } });
+  tap($('resumeBtn'), () => P.setPaused(false));
+} else $('pauseOv').style.display = 'none';
+if (P.flag('difficulty')) { $('diffBox').style.display = ''; P.difficulty($('diffBox'), { value: 'normal', onPick: (k) => { level = k; updateGoal(); } }); }
+if (P.flag('highscores')) { $('hsBox').style.display = ''; hs = P.highscores($('hsBox'), { title: 'Rarest pull', format: (n) => '1 in ' + fmt(n) }); }
+if (MOON) { $('moonBtn').style.display = ''; tap($('moonBtn'), () => { S.moon = !S.moon; buildBg(); save(); }); }
+
+function start() {
+  if (S.screen === 'play') return;
+  audio(); SFX.click();
+  S.screen = 'play'; $('titleOv').hidden = true;
+  if (P.flag('pause')) $('pauseBtn').style.display = '';
+  updateGoal(); updateHud();
+}
+tap($('playBtn'), start);
+let holdTimer = null;
+tap($('rollBtn'), () => { if (S.screen !== 'play') start(); else roll(); });
+tap($('autoBtn'), () => { audio(); if (S.unlocked >= 1 && tuned('auto_roll')) { S.auto = !S.auto; SFX.click(); updateHud(); } });
+tap($('muteBtn'), () => { audio(); setMuted(!S.muted); });
+tap($('colBtn'), () => { audio(); SFX.click(); openCol(true); });
+tap($('colClose'), () => openCol(false));
+tap($('worldBtn'), () => { audio(); if (S.unlocked > 0) { SFX.click(); travel((S.world + 1) % (S.unlocked + 1)); } });
+tap($('msgBtn'), () => closeMsg(true));
+tap($('msgBtn2'), () => closeMsg(false));
+window.addEventListener('keydown', (e) => {
+  const k = e.key;
+  if (k === ' ' || k === 'Enter') {
+    e.preventDefault();
+    if (S.overlay === 'msg') { if (!e.repeat) closeMsg(true); return; }
+    if (S.colOpen) { openCol(false); return; }
+    if (S.screen !== 'play') { start(); return; }
+    roll(); $('rollBtn').classList.add('down');
+  } else if (k === 'c' || k === 'C') { if (S.screen === 'play') openCol(!S.colOpen); }
+  else if (k === 'm' || k === 'M') { audio(); setMuted(!S.muted); }
+  else if (k === 'a' || k === 'A') { if (S.unlocked >= 1 && tuned('auto_roll') && S.screen === 'play') { S.auto = !S.auto; updateHud(); } }
+  else if (k === 'w' || k === 'W') { if (S.unlocked > 0 && S.screen === 'play' && !S.overlay) travel((S.world + 1) % (S.unlocked + 1)); }
+  else if (k === 'Escape' && S.colOpen) openCol(false);
+});
+window.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') $('rollBtn').classList.remove('down'); });
+void holdTimer;
+
+renderCollection(); updateGoal(); updateHud();
+P.post('whimcade:owned');
+P.post('whimcade:load');
+
+window.__game = {
+  getState: () => ({
+    screen: S.screen, rolls: S.rolls, luck: S.luck, world: S.world, worldName: WORLDS[S.world].name, unlocked: S.unlocked, worlds: WORLDS.length,
+    counts: Object.assign({}, S.counts), shiny: Object.assign({}, S.shiny), discovered: ALL.filter((p) => S.counts[p.id] || S.shiny[p.id]).map((p) => p.id),
+    last: S.last, rolling: S.rolling, auto: S.auto, overlay: S.overlay, colOpen: S.colOpen, done: S.done, rarest: S.rarest,
+    luckMult: luckMult(), muted: S.muted, paused: P.paused, moon: S.moon, level, posts: S.posts.slice(),
+    flags: Object.assign({}, P.flags), tuning: P.tuning(), extras: S.golden ? ['golden_dice'] : [],
+  }),
+  start, roll, travel, fuse, closeMsg, applySave, snapshot,
+  setTimeScale: (n) => { S.ts = Math.max(0.1, Math.min(50, +n || 1)); },
+  setLuck: (n) => { S.luck = Math.max(0, n | 0); updateHud(); updateGoal(); },
+  grant: (id, n) => { if (BY[id]) { S.counts[id] = (S.counts[id] || 0) + (n || 1); renderCollection(); updateGoal(); checkGoals(); } },
+};
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
